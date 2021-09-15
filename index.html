@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="utf-8" />
+        <title>Einstein Evolutivo</title>
+        <link rel="stylesheet" type="text/css" href="estilo.css">
+        <script language="javascript" type="text/javascript" src="redeNeural.js"></script>
+        <script language="javascript" type="text/javascript" src="matriz.js"></script>
+        <script language="javascript" type="text/javascript" src="genetico.js"></script>
+        <link rel="icon" type="image/png" href="albert-icon.png"/>
+
+        <style>
+
+            body{
+                font-size: 100%;
+                background-image: url("fundo_inicio.jpg");
+                background-attachment: fixed;  
+                background-size: 100%;
+            }
+
+            .inicio_persona{
+                position: absolute;
+                top: 0%;
+                bottom: 35%;
+                left: 15%;
+                right: 15%;
+                margin: auto;
+            }
+
+            canvas{
+                position: absolute;
+                margin: auto;
+            }
+            
+            .start{
+                position:absolute; 
+                top:75%;
+                left:50.5%;
+                transform: translate(-50%, -50%);
+                border-top: 1% solid #96d1f8;
+                background: #d665b8;
+                background: -webkit-gradient(linear, left top, left bottom, from(#3e779d), to(#d665b8));
+                background: -webkit-linear-gradient(top, #3e779d, #d665b8);
+                background: -moz-linear-gradient(top, #3e779d, #d665b8);
+                background: -ms-linear-gradient(top, #3e779d, #d665b8);
+                background: -o-linear-gradient(top, #3e779d, #d665b8);
+                padding: 1.5% 3%;
+                border-radius: 80%;
+                box-shadow: rgba(0,0,0,1) 0 1% 0;
+                text-shadow: rgba(0,0,0,.4) 0 1% 0;
+                color: white;
+                font-size: 130%;
+                font-family: Helvetica, Arial, Sans-Serif;
+                text-decoration: none;
+                vertical-align: middle;
+            }
+                
+            .button:hover {
+                border-top-color: #d4e9f7;
+                background: #b2d3e8;
+                color: #ccc;
+            }
+
+            .button:active {
+                border-top-color: #1b435e;
+                background: #1b435e;
+            }
+
+        </style>
+    </head>
+    
+    <body>
+
+        <img class="inicio_persona" src="inicio_persona.png" width=800 height=800>
+        <button class="start" onclick="executar();">START GAME</button>
+
+       <button class="melhor_solucao" onclick="clicou_botaoMelhorIndividuo();">MELHOR INDIVÍDUO</button>
+       <!--  <button class="usuario_jogar" onclick="jogar();">JOGAR</button>
+       -->
+
+        <script type="text/javascript">
+
+            function clicou_botaoMelhorIndividuo(){
+
+                if(localStorage.getItem('cromossomo') != null){
+                    teste_melhorIndividuo = true;
+                }
+                executar();
+            }
+
+            //variaveis globais do jogo
+            let canvas, ctx, ALTURA, LARGURA, frames = 0, maxPulos = 1, velocidade = 5,
+            estadoAtual, time = 0, neuronios_co = 100, mente_personagem = new RedeNeural(2, neuronios_co, 2),
+            genetico = new Genetico(20), posicao_individuo = 0, saida_da_rede, pulo, entrada_da_rede,
+            pontuacao_individuo = 0, proximo_obstaculo = 0, taxa_mutacao = 0.1, distancia_bloco_obstaculoX,
+            distancia_bloco_obstaculoY, avaliacao_puloX = 0, avaliacao_puloY = 0, ruim=0,
+            altura_pulo, pulo_dopersonagem = false, controle_pulo = false, pulou_a_toa = false,
+            teste_melhorIndividuo = false, testando_melhorIndividuo = false, tempo_personagem = 0,
+            som_pulo = new Audio('pulo.mp3'), bomba = new Audio('bomba-1.wav'),
+            som_fundo =  new Audio("som_fundo.mp3"), personagem_campeao = false;
+            
+            // Função para deixar em FullScreen()
+            function executar() {
+                (function requestFullScreen() {
+                    let el = document.body
+
+                    // Supports most browsers and their versions.
+                    let requestMethod = el.requestFullScreen || el.webkitRequestFullScreen 
+                    || el.mozRequestFullScreen || el.msRequestFullScreen;
+
+                    if (requestMethod) // Native full screen.
+                        requestMethod.call(el)
+                    else if (typeof window.ActiveXObject !== "undefined") {
+                        // Older IE.
+                        let wscript = new ActiveXObject("WScript.Shell");
+                        if (wscript !== null) 
+                            wscript.SendKeys("{F11}")
+                    }
+                })()
+
+
+                let estados = { jogar: 0, jogando:1, perdeu:2 },
+                
+                chao = {
+                    y: window.innerHeight - 50, altura: 50,
+                    cor: "#281515", //cor chao
+
+                    desenha: function(){
+                        ctx.fillStyle = this.cor; //escolhendo cor
+                        ctx.fillRect(0, this.y, LARGURA, this.altura); //desenhar na tela
+                    }
+
+                }, 
+                
+                bloco = {
+                    x: 200, y: 50, // da onde ele começa
+                    altura: 100, largura: 100,
+                    velocidade: 0, gravidade: 1, //muda velocidade com que o bloco cai
+                    forcaDoPulo: 0, qntPulos: 0,
+
+                    atualiza: function(){
+                        this.velocidade += this.gravidade;
+                        this.y += this.velocidade;
+
+                        if(this.y > chao.y - this.altura){ //para bloco nao passar do chao
+                            this.y = chao.y - this.altura;
+                            this.qntPulos = 0; //se o bloco tocar o chao, pode pular novamente
+                        }
+                    },
+
+                    pula: function(){
+                        if(this.qntPulos < maxPulos){ //para nao pular mais que quantidade definida
+                            this.velocidade = -this.forcaDoPulo; //negativo pois vai atuar contra a gravidade
+                            this.qntPulos++;
+                        }
+                    },
+
+                    desenha: function(){
+                        let persona = new Image();
+                        persona.src = "personagem-1.png"
+                        ctx.drawImage(persona, this.x, this.y, this.altura, this.largura);
+                    }
+
+                },
+
+                obstaculos = {
+                    _obs: [],
+                    cores: ["#ffbc1c", "#ff1c1c", "#ff85e1", "#ff5151", "#78ff5d"],
+                    tempoInsere: 0,
+
+                    insere: function(){
+                        this._obs.push({ //push: inserir elemento no vetor
+                            x: LARGURA,
+                            largura: 50, // 30 + Math.floor(21 * Math.random()), //largura de 30 a 50 pixels
+                            altura: 100, //30 + Math.floor(121 * Math.random()), //altura de 30 ate 151
+                            cor: this.cores[Math.floor(5 * Math.random())], //sortear cor
+                        });
+
+                        this.tempoInsere = Math.round( Math.random() * (100 - 50) + 50);
+                    },
+
+                    atualiza: function(){
+                        if(this.tempoInsere == 0)
+                            this.insere();
+                        else
+                            this.tempoInsere--;
+
+                        for(let i = 0, tam = this._obs.length; i < tam; i++){
+                            let obs = this._obs[i]; //selecionando elemento do vetor
+
+                            obs.x -= velocidade; //decrementando x conforme valor da velocidade
+
+                            //verificando colisao
+                            if(bloco.x < obs.x + obs.largura && bloco.x + bloco.largura >= 
+                                obs.x && bloco.y + bloco.altura >= chao.y - obs.altura){
+                                estadoAtual = estados.perdeu;
+                                time = 0; //tempo para reiniciar jogo
+                                tempo_personagem = 0; // zerar tempo do personagem
+                                som_pulo.pause();  
+                                som_fundo.pause();
+                                bomba.play();
+                            }
+                            else if(obs.x <= -obs.largura){ //obstaculo saiu do canvas (tela)
+                                this._obs.splice(i, 1); //removendo obstaculo
+                                tam--; //diminuir tamanho do vetor
+                                i--; //diminuir busca
+                            }
+                        }
+
+                    },
+
+                    desenha: function(){
+                        for(let i = 0, tam = this._obs.length; i < tam; i++){
+                            let obs = this._obs[i]; //selecionando elemento do vetor
+                            ctx.fillStyle = obs.cor; //cor do "pincel"
+                            ctx.fillRect(obs.x, chao.y - obs.altura, obs.largura, obs.altura); //desenhar
+                        }
+
+                    },
+
+                };
+
+                function main(){
+                     //salvando altura e largura da tela do usuario
+                    ALTURA = window.innerHeight;
+                    LARGURA = window.innerWidth;
+
+                    //criando elemento canvas para desenhar na tela e atribuir largura e altura da tela
+                    canvas = document.createElement("canvas");
+                    canvas.width = LARGURA;
+                    canvas.height = ALTURA;
+                    canvas.style.border = "1px solid #000"; //criando borda preta na tela
+
+                    ctx = canvas.getContext("2d"); //vamos desenhar elementos 2D
+                    document.body.appendChild(canvas);
+
+                    estadoAtual = estados.jogar;
+                    
+                    criar_populacao_incial();
+
+                    roda(); //loop do jogo
+                }
+
+                function roda(){
+                    atualiza();
+                    desenha();
+                    pulo_personagem();
+                    window.requestAnimationFrame(roda) //cria um loop infinito
+                }
+
+                function atualiza(){
+                    frames++;
+                    //console.log(frames);
+                    //testando rede neural
+                    //criando entradas, dadas pela posicao do primeiro obstacul
+                    bloco.atualiza();
+                    //atualizar obstaculo somente quando esta jogando
+                    if(estadoAtual == estados.jogando)
+                        obstaculos.atualiza();
+                    
+                    //limpar array de obstaculos
+                    else
+                        obstaculos._obs = [];
+                    
+                }
+
+                function desenha(){
+                    
+                    //desenhando fundo do jogo
+                    if(pontuacao_individuo < 6000){
+                        let nivel1 = new Image()
+                        nivel1.src = "nivel1.png"
+                        ctx.drawImage(nivel1, 0, 0, LARGURA, ALTURA)
+                        ctx.fillStyle = "#AAAAAA";
+                        ctx.font = "30px Arial";
+                        ctx.fillText("Nível 1", LARGURA - 800, ALTURA - 810) 
+                    }
+                    else if(pontuacao_individuo < 12000){
+                        let nivel2 = new Image()
+                        nivel2.src = "nivel2.png"
+                        ctx.drawImage(nivel2, 0, 0, LARGURA, ALTURA) 
+                        ctx.fillStyle = "#AAAAAA";
+                        ctx.font = "30px Arial";
+                        ctx.fillText("Nível 2", LARGURA - 800, ALTURA - 810)
+                    }
+                    else if(pontuacao_individuo < 18000){
+                        let nivel3 = new Image()
+                        nivel3.src = "nivel3.png"
+                        ctx.drawImage(nivel3, 0, 0, LARGURA, ALTURA) 
+                        ctx.fillStyle = "#AAAAAA";
+                        ctx.font = "30px Arial";
+                        ctx.fillText("Nível 3", LARGURA - 800, ALTURA - 810)
+                    }
+                    else{
+                        let nivel4 = new Image()
+                        nivel4.src = "nivel4.png"
+                        ctx.drawImage(nivel4, 0, 0, LARGURA, ALTURA)
+                        ctx.fillStyle = "#AAAAAA";
+                        ctx.font = "30px Arial";
+                        ctx.fillText("Nível 4", LARGURA - 800, ALTURA - 810)
+                    }
+
+                    //mostrando dados do individuo atual (geração, fitness)
+                    if(teste_melhorIndividuo == false){
+                        ctx.fillStyle = "#AAAAAF";
+                        ctx.font = "30px Arial";
+                        ctx.fillText("Geração: " + (genetico.geracao+1), 30, 50);
+                        ctx.fillText("Indivíduo " + (posicao_individuo + 1) + ", Fitness: " + pontuacao_individuo, 30, 85);
+                    }
+                    else{
+                        //testando melhor individuo:
+                        ctx.fillStyle = "#AAAAAF";
+                        ctx.font = "30px Arial";
+                        ctx.fillText("Testando Melhor Indivíduo!", 30, 50);
+
+                    }
+
+                    //menu de inicio do jogo
+                    if(estadoAtual == estados.jogar){
+                        personagem_campeao = false
+                    }
+                    
+                    //parar quando personagem atinge obstaculo
+                    else if(estadoAtual == estados.perdeu){
+                        if(personagem_campeao == false){
+                            let perdeu = new Image()
+                            perdeu.src = "perdeu.png"
+                            ctx.drawImage(perdeu, LARGURA - 1200, ALTURA - 450, 400, 400)
+                        }
+                        else{
+                            //personagem passou todos os niveis
+                            let campeao = new Image()
+                            campeao.src = "fim-vitoria.png"
+                            ctx.drawImage(campeao, 550, 200, 400, 400);
+                        }
+
+                    }
+                    //desenhar obstaculo só quando estiver jogando
+                    else if(estadoAtual == estados.jogando){
+                        som_fundo.play();
+                        obstaculos.desenha();
+                    }
+
+                    chao.desenha()
+                    bloco.desenha();
+                }
+
+                function pulo_personagem(){
+                    time++;
+                    if(estadoAtual == estados.jogando){
+                        time=0; // reiniciando tempo
+
+                        //tempo que personagem esta vivo no jogo
+                        tempo_personagem++;
+
+                        if(tempo_personagem < 15000){
+                            //somar tempo que personagem esta vivo no jogo 
+                            tempo_personagem++;  
+                        }
+                        else{
+                            //personagem não morreu e já deu o tempo limite
+                            tempo_personagem = 0; //zerar tempo
+                            estadoAtual = estados.perdeu;
+                            personagem_campeao = true;
+                        }
+
+                        //decisoes da rede neural
+                        if(obstaculos._obs.length != 0 && obstaculos._obs[0].x > 0 && ( (bloco.y + bloco.altura) - chao.y) == 0)
+                        { //obstaculos._obs.length != 0 && obstaculos._obs[0].x > 0 && frames % 10 == 0
+
+                            //personagem nao esta mais pulando
+                            controle_pulo = false;
+
+
+                            //console.log("rede neural atuando");
+                            //verificar se obstaculo já passou do personagem
+                            if(bloco.x > obstaculos._obs[0].x && obstaculos._obs[1] != null){
+                                proximo_obstaculo = 1;
+                            }
+                            else{
+                                proximo_obstaculo = 0;
+                            }
+
+                            //fazer avaliacao da populacao, mostrando o individuo no jogo 
+                            entrada_da_rede = [obstaculos._obs[proximo_obstaculo].x, obstaculos._obs[proximo_obstaculo].altura];
+                            saida_da_rede = mente_personagem.prever(entrada_da_rede);  
+
+                            if(saida_da_rede[0] > 0.5){
+                                pulo = saida_da_rede[1] * 25;
+                                //console.log("pulo: " + pulo + ", saida da rede: " + saida_da_rede);
+                                bloco.forcaDoPulo = pulo;
+                                bloco.pula();
+                                if(pulo >= 2){
+                                    som_pulo.play();
+                                }
+                            }
+                            else{
+                                //console.log("Não pular" + saida_da_rede);
+                            }   
+                        }
+
+                        //verificar se bloco começou a pular e avalia o pulo
+                        if( ((bloco.y + bloco.altura) - chao.y) != 0 && pulo_dopersonagem == false)
+                        {
+                            pulou_a_toa = true;
+
+                            //verificar se obstaculo já passou do personagem
+                            if(bloco.x > obstaculos._obs[0].x && obstaculos._obs[1] != null){
+                                proximo_obstaculo = 1;
+                            }
+                            else{
+                                proximo_obstaculo = 0;
+                            }
+                            
+                            //personagem esta pulando o obstaculo
+                            if(obstaculos._obs[proximo_obstaculo].x < bloco.x+25){
+                                //bloco.x+ 25 = meio do personagem
+
+                                pulo_dopersonagem = true;
+
+                                //controle_pulo para nao executar varias vezes este 'if' durante o pulo
+                                controle_pulo = true;
+
+                                //nao pulou a toa
+                                pulou_a_toa = false;
+
+                                //salvar altura do pulo
+                                altura_pulo = (chao.y - bloco.y) - ( (chao.y - bloco.y) - obstaculos._obs[proximo_obstaculo].altura );
+                            }
+                        }
+                        else if(pulo_dopersonagem){
+
+                            if(controle_pulo){
+                                //quanto melhor o pulo, se ganha mais pontos
+                                //console.log("Premio por pulo bom!");
+                                pontuacao_individuo = pontuacao_individuo + altura_pulo + 10;
+                                //console.log(pontuacao_individuo);
+                                pulo_dopersonagem = false;
+                            }
+                        }
+                        else if(pulou_a_toa){
+                            //console.log("Sendo punido por pulo a toa");
+                            pontuacao_individuo = pontuacao_individuo - 10;
+                            //console.log(pontuacao_individuo);
+                            pulou_a_toa = false;
+                        }
+
+                        //somar pontuacao por personagem estar vivo
+                        pontuacao_individuo = pontuacao_individuo + 0.5;  
+                        //console.log("pontuacao do individuo");
+                        //console.log(pontuacao_individuo);
+                    }
+                    else if(estadoAtual == estados.jogar && time == 300){
+
+                        //verificando se é para mostrar o melhor individuo
+                        if(teste_melhorIndividuo){
+                            carregar_melhorIndividuo();
+                        }
+
+                        estadoAtual = estados.jogando;
+                    }
+                    else if(estadoAtual == estados.perdeu && time == 200){
+                        
+                        //reiniciando variaveis de controle
+                        tempo_personagem = 0; //tempo que personagem durou no jogo
+                        pulou_a_toa = false;
+                        pulo_dopersonagem = false;
+                        obstaculos._obs = []; //apagar obstaculo
+                        
+                        //verificar se acabou de mostrar o melhor individuo
+                        if(testando_melhorIndividuo == false)
+                        {
+                            if(pontuacao_individuo < 0)
+                                pontuacao_individuo = 1;
+
+                            //salvar pontuacao no individuo 
+                            //console.log("PONTUACAO: ");
+                            //console.log(pontuacao_individuo);
+                            genetico.populacao[posicao_individuo].avaliacao(pontuacao_individuo);
+                            
+                            //zerar pontuacao para teste do proximo individuo
+                            pontuacao_individuo = 0;
+
+                            //passar para proximo individuo
+                            posicao_individuo++;
+                            //console.log("testando outro individuo");
+                            //console.log(JSON.parse(JSON.stringify(posicao_individuo)));
+
+                            //verificar se já mostrou todos individuos da população
+                            if(posicao_individuo >= genetico.populacao.length){
+                                posicao_individuo = 0;
+
+                                //comparar melhor individuo da populaçao com o melhor geral
+                                for(let i in genetico.populacao){
+                                    genetico.melhor_individuo(genetico.populacao[i]);
+                                }
+                                
+
+                                // Local Storage vazio
+                                if(localStorage.getItem('cromossomo') == null){
+                                    localStorage.setItem('cromossomo', JSON.stringify(genetico.melhor_solucao));
+                                    //converter para objeto
+                                    let data = JSON.parse(localStorage.getItem('cromossomo'));
+                                    //console.log("mostrando individuo salvo no local storage:");
+                                    //console.log(data);
+                                    //console.log("mostrando somente cromossomo");
+                                    //console.log(data.cromossomo);
+                                }
+
+                                else{ // Local Storage com cromosso
+                                    let data = JSON.parse(localStorage.getItem('cromossomo'));
+                                    //comparar individuo salvo com atual da geração
+                                    if(genetico.melhor_solucao.fitness > data.fitness){
+                                        //console.log("Alterando individuo salvo localmente");
+                                        //console.log("Indivuo atual salvo:");
+                                        //console.log(JSON.parse(JSON.stringify(data)));
+                                        //console.log("Indivuo que vai entrar no lugar:");
+                                        //console.log(JSON.parse(JSON.stringify(genetico.melhor_solucao)));
+
+                                        localStorage.removeItem('cromossomo');
+                                        localStorage.setItem('cromossomo', JSON.stringify(genetico.melhor_solucao));
+                                    }
+                                }
+
+                                //let data = JSON.parse(localStorage.getItem('cromossomo'));
+                                //console.log("DATA: ");
+                                //console.log(JSON.parse(JSON.stringify(data)));
+
+                                genetico.geracao++;
+                                ctx.fillStyle = "#AAAAAA";
+                                ctx.font = "30px Arial";
+                                ctx.fillText("Melhor Indivíduo: " + genetico.melhor_individuo, 30, 150);
+
+                                console.log("Genetico anterior: ");
+                                console.log(JSON.parse(JSON.stringify(genetico)));
+                                console.log("Geração " + genetico.geracao + ":");
+
+                                /*for(let i in genetico.populacao){
+                                    console.log( "Individuo " + i + ", Fitness: " + genetico.populacao[i].fitness);
+                                }*/
+
+                                //criar nova geração e substituir na atual
+                                genetico.calcular_nova_geracao(taxa_mutacao);
+                            }
+
+                        }
+
+                        else{ //acabou de testar o melhor personagem
+                            testando_melhorIndividuo = false;
+                            console.log("terminou de testar melhor individuo");
+                            teste_melhorIndividuo = false;
+                            pontuacao_individuo = 0;
+                        }
+                        
+                        estadoAtual = estados.jogar;
+                        //substituir pesos e bias da rede neural pelo cromossomo do individuo atual
+                        mente_personagem.pesos_eo.para_matrizes(mente_personagem.pesos_os,
+                                                                genetico.populacao[posicao_individuo].cromossomo,mente_personagem.bias_o,
+                                                                mente_personagem.bias_s);
+                    }
+                }
+
+                function criar_populacao_incial(){
+
+                    for(let i = 0; i < genetico.tamanho_populacao; i++){
+                        
+                        //concatenar os duas matrizes pesos e dois bias
+                        //salvando pesos e bias da rede neural no vetor "novo_individuo"
+                        let novo_individuo = mente_personagem.pesos_eo.para_vetor(mente_personagem.pesos_os, 
+                                                                                mente_personagem.bias_o, mente_personagem.bias_s);
+
+                        //salvando novo_individuo na populacao do genetico
+                        genetico.inicializa_populacao(novo_individuo);
+                        
+                        //criar nova rede neural e substituir anterior
+                        mente_personagem = new RedeNeural(2, neuronios_co, 2); 
+                    }
+                }
+
+                function carregar_melhorIndividuo(){
+                    
+                    let data = JSON.parse(localStorage.getItem('cromossomo'));
+                    console.log("mostrando individuo salvo no local storage:");
+                    console.log(data);
+                                    
+                    //substituir pesos e bias da rede neural pelo cromossomo do individuo atual
+                    mente_personagem.pesos_eo.para_matrizes(mente_personagem.pesos_os,
+                                                        data.cromossomo,mente_personagem.bias_o,
+                                                        mente_personagem.bias_s);
+                    
+                    testando_melhorIndividuo = true;
+                }
+
+                //inicializa o jogo
+                main();
+            }
+            
+        </script>
+    </body> 
+</html>

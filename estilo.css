@@ -1,0 +1,120 @@
+body{
+    font-size: 100%;
+    background-image: url("fundo_inicio.jpg");
+    background-attachment: fixed;  
+    background-size: 100%;
+}
+
+.inicio_persona{
+    position: absolute;
+    top: 0%;
+    bottom: 35%;
+    left: 15%;
+    right: 15%;
+    margin: auto;
+}
+
+canvas{
+    position: absolute;
+    margin: auto;
+}
+
+.usuario_jogar{
+    position:absolute; 
+    top:67.5%;
+    left:50.5%;
+    transform: translate(-50%, -50%);
+    border-top: 1% solid #96d1f8;
+    background: #d665b8;
+    background: -webkit-gradient(linear, left top, left bottom, from(#3e779d), to(#d665b8));
+    background: -webkit-linear-gradient(top, #3e779d, #d665b8);
+    background: -moz-linear-gradient(top, #3e779d, #d665b8);
+    background: -ms-linear-gradient(top, #3e779d, #d665b8);
+    background: -o-linear-gradient(top, #3e779d, #d665b8);
+    padding: 1.5% 3%;
+    border-radius: 80%;
+    box-shadow: rgba(0,0,0,1) 0 1% 0;
+    text-shadow: rgba(0,0,0,.4) 0 1% 0;
+    color: white;
+    font-size: 130%;
+    font-family: Helvetica, Arial, Sans-Serif;
+    text-decoration: none;
+    vertical-align: middle;
+    }
+    .button:hover {
+    border-top-color: #b2d3e8;
+    background: #b2d3e8;
+    color: #ccc;
+    }
+    .button:active {
+    border-top-color: #1b435e;
+    background: #1b435e;
+}
+
+.start{
+    position:absolute; 
+    top:70%;
+    left:50.5%;
+    transform: translate(-50%, -50%);
+    border-top: 1% solid #96d1f8;
+    background: #d665b8;
+    background: -webkit-gradient(linear, left top, left bottom, from(#3e779d), to(#d665b8));
+    background: -webkit-linear-gradient(top, #3e779d, #d665b8);
+    background: -moz-linear-gradient(top, #3e779d, #d665b8);
+    background: -ms-linear-gradient(top, #3e779d, #d665b8);
+    background: -o-linear-gradient(top, #3e779d, #d665b8);
+    padding: 1.5% 3%;
+    border-radius: 80%;
+    box-shadow: rgba(0,0,0,1) 0 1% 0;
+    text-shadow: rgba(0,0,0,.4) 0 1% 0;
+    color: white;
+    font-size: 130%;
+    font-family: Helvetica, Arial, Sans-Serif;
+    text-decoration: none;
+    vertical-align: middle;
+}
+    
+.button:hover {
+    border-top-color: #b2d3e8;
+    background: #b2d3e8;
+    color: #ccc;
+}
+
+.button:active {
+    border-top-color: #1b435e;
+    background: #1b435e;
+}
+
+.melhor_solucao{
+    position:absolute; 
+    top:85%;
+    left:50.5%;
+    transform: translate(-50%, -50%);
+    border-top: 1% solid #96d1f8;
+    background: #d665b8;
+    background: -webkit-gradient(linear, left top, left bottom, from(#3e779d), to(#d665b8));
+    background: -webkit-linear-gradient(top, #3e779d, #d665b8);
+    background: -moz-linear-gradient(top, #3e779d, #d665b8);
+    background: -ms-linear-gradient(top, #3e779d, #d665b8);
+    background: -o-linear-gradient(top, #3e779d, #d665b8);
+    padding: 1.5% 3%;
+    border-radius: 80%;
+    box-shadow: rgba(0,0,0,1) 0 1% 0;
+    text-shadow: rgba(0,0,0,.4) 0 1% 0;
+    color: white;
+    font-size: 130%;
+    font-family: Helvetica, Arial, Sans-Serif;
+    text-decoration: none;
+    vertical-align: middle;
+}
+
+.button:hover {
+    border-top-color: #b2d3e8;
+    background: #b2d3e8;
+    color: #ccc;
+}
+    
+.button:active {
+    border-top-color: #1b435e;
+    background: #1b435e;
+}
